@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Interactive Tree Simulator — CO3_AT2</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel2:#16213a; --accent:#38bdf8;
+    --accent2:#a78bfa; --text:#e2e8f0; --muted:#94a3b8; --node:#334155;
+    --nodeActive:#f59e0b; --nodeVisited:#22c55e; --nodeNew:#38bdf8;
+    --danger:#f87171;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:'Segoe UI',Roboto,Arial,sans-serif;
+    background:linear-gradient(160deg,var(--bg),#111827);
+    color:var(--text); min-height:100vh;
+  }
+  header{
+    padding:20px 28px 10px; text-align:center;
+  }
+  header h1{margin:0 0 4px; font-size:26px; letter-spacing:.5px;}
+  header p{margin:0; color:var(--muted); font-size:13px;}
+  .layout{
+    display:flex; gap:18px; padding:16px 28px 28px; flex-wrap:wrap;
+  }
+  .controls{
+    background:var(--panel); border-radius:14px; padding:18px;
+    width:280px; flex-shrink:0; box-shadow:0 8px 24px rgba(0,0,0,.35);
+  }
+  .controls h3{margin:0 0 10px; font-size:14px; color:var(--accent); text-transform:uppercase; letter-spacing:1px;}
+  .row{display:flex; gap:8px; margin-bottom:10px;}
+  input[type=number]{
+    flex:1; padding:9px 10px; border-radius:8px; border:1px solid #334155;
+    background:#0f172a; color:var(--text); font-size:14px;
+  }
+  button{
+    cursor:pointer; border:none; border-radius:8px; padding:9px 12px;
+    font-size:13px; font-weight:600; transition:transform .1s, opacity .2s;
+  }
+  button:active{transform:scale(.96);}
+  .btn-primary{background:var(--accent); color:#0f172a;}
+  .btn-secondary{background:#334155; color:var(--text);}
+  .btn-danger{background:var(--danger); color:#3b0a0a;}
+  .btn-full{width:100%; margin-bottom:8px;}
+  .group{margin-bottom:16px;}
+  .group-label{font-size:11px; color:var(--muted); margin-bottom:6px; text-transform:uppercase;}
+  .traversal-out{
+    background:#0f172a; border-radius:8px; padding:10px; min-height:44px;
+    font-family:'Courier New',monospace; font-size:14px; color:var(--nodeVisited);
+    word-break:break-word; border:1px solid #263349;
+  }
+  .stats{display:flex; justify-content:space-between; font-size:12px; color:var(--muted); margin-top:14px;}
+  .stats b{color:var(--text);}
+  .canvas-wrap{
+    flex:1; min-width:340px; background:var(--panel2); border-radius:14px;
+    box-shadow:0 8px 24px rgba(0,0,0,.35); padding:10px; position:relative;
+    overflow:auto;
+  }
+  svg{width:100%; height:520px; display:block;}
+  .edge{stroke:#475569; stroke-width:2;}
+  .node-circle{stroke:#0f172a; stroke-width:2; transition:fill .25s, r .25s;}
+  .node-text{fill:#0f172a; font-weight:700; font-size:14px; text-anchor:middle; dominant-baseline:middle; pointer-events:none;}
+  .empty-msg{color:var(--muted); text-align:center; margin-top:220px; font-size:14px;}
+  .speed-row{display:flex; align-items:center; gap:8px;}
+  .speed-row input[type=range]{flex:1;}
+  .footer-note{
+    text-align:center; color:var(--muted); font-size:11px; padding:0 28px 24px;
+  }
+  .legend{display:flex; gap:14px; flex-wrap:wrap; margin-top:12px; font-size:11px; color:var(--muted);}
+  .legend span{display:inline-flex; align-items:center; gap:5px;}
+  .dot{width:10px; height:10px; border-radius:50%; display:inline-block;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🌳 Interactive Tree Simulator</h1>
+  <p>CO3_AT2 · Binary Search Tree — Insert, Delete, Search & Traversal Visualizer</p>
+</header>
+
+<div class="layout">
+  <div class="controls">
+    <div class="group">
+      <div class="group-label">Node Value</div>
+      <div class="row">
+        <input type="number" id="valInput" placeholder="e.g. 42">
+      </div>
+      <button class="btn-primary btn-full" onclick="doInsert()">➕ Insert</button>
+      <button class="btn-danger btn-full" onclick="doDelete()">🗑 Delete</button>
+      <button class="btn-secondary btn-full" onclick="doSearch()">🔍 Search</button>
+    </div>
+
+    <div class="group">
+      <div class="group-label">Traversals</div>
+      <div class="row">
+        <button class="btn-secondary" style="flex:1" onclick="doTraversal('inorder')">Inorder</button>
+        <button class="btn-secondary" style="flex:1" onclick="doTraversal('preorder')">Preorder</button>
+      </div>
+      <div class="row">
+        <button class="btn-secondary" style="flex:1" onclick="doTraversal('postorder')">Postorder</button>
+        <button class="btn-secondary" style="flex:1" onclick="doTraversal('levelorder')">Level-order</button>
+      </div>
+      <div class="traversal-out" id="traversalOut">Run a traversal to see the order here…</div>
+    </div>
+
+    <div class="group">
+      <div class="group-label">Animation Speed</div>
+      <div class="speed-row">
+        <span style="font-size:11px">Fast</span>
+        <input type="range" id="speed" min="100" max="1000" value="450">
+        <span style="font-size:11px">Slow</span>
+      </div>
+    </div>
+
+    <button class="btn-secondary btn-full" onclick="randomTree()">🎲 Random Tree (7 nodes)</button>
+    <button class="btn-secondary btn-full" onclick="clearTree()">♻ Clear Tree</button>
+
+    <div class="stats">
+      <div>Nodes: <b id="nodeCount">0</b></div>
+      <div>Height: <b id="heightCount">0</b></div>
+    </div>
+
+    <div class="legend">
+      <span><i class="dot" style="background:var(--node)"></i>Idle</span>
+      <span><i class="dot" style="background:var(--nodeActive)"></i>Visiting</span>
+      <span><i class="dot" style="background:var(--nodeVisited)"></i>Visited</span>
+      <span><i class="dot" style="background:var(--nodeNew)"></i>New</span>
+    </div>
+  </div>
+
+  <div class="canvas-wrap">
+    <svg id="svg" viewBox="0 0 900 520"></svg>
+  </div>
+</div>
+
+<p class="footer-note">Built as an original tool for CO3_AT2 · Renders live, animates each operation node-by-node · No external libraries</p>
+
+<script>
+// ---------- BST core ----------
+class Node{
+  constructor(v){this.val=v; this.left=null; this.right=null; this.x=0; this.y=0; this.id=Math.random().toString(36).slice(2);}
+}
+let root=null;
+
+function insert(node,val){
+  if(!node) return new Node(val);
+  if(val<node.val) node.left=insert(node.left,val);
+  else if(val>node.val) node.right=insert(node.right,val);
+  return node;
+}
+function findMin(node){ while(node.left) node=node.left; return node; }
+function remove(node,val){
+  if(!node) return null;
+  if(val<node.val) node.left=remove(node.left,val);
+  else if(val>node.val) node.right=remove(node.right,val);
+  else{
+    if(!node.left) return node.right;
+    if(!node.right) return node.left;
+    const succ=findMin(node.right);
+    node.val=succ.val;
+    node.right=remove(node.right,succ.val);
+  }
+  return node;
+}
+function heightOf(node){ return node? 1+Math.max(heightOf(node.left),heightOf(node.right)) : 0; }
+function countOf(node){ return node? 1+countOf(node.left)+countOf(node.right) : 0; }
+
+// ---------- layout ----------
+function layout(){
+  let xCounter=0;
+  const W=900, marginTop=50, levelGap=80;
+  function assign(node,depth){
+    if(!node) return;
+    assign(node.left,depth+1);
+    node.x = 60 + xCounter*70;
+    node.y = marginTop + depth*levelGap;
+    xCounter++;
+    assign(node.right,depth+1);
+  }
+  assign(root,0);
+  // center horizontally
+  const total = countOf(root);
+  const treeWidth = (total-1)*70;
+  const offset = Math.max(30,(900-treeWidth)/2 - 60);
+  function shift(node){ if(!node) return; node.x+=offset; shift(node.left); shift(node.right); }
+  shift(root);
+}
+
+// ---------- render ----------
+function render(highlightMap={}){
+  layout();
+  const svg=document.getElementById('svg');
+  document.getElementById('nodeCount').textContent = countOf(root);
+  document.getElementById('heightCount').textContent = heightOf(root);
+  if(!root){
+    svg.innerHTML = `<text x="450" y="260" fill="#64748b" text-anchor="middle" font-size="16">Tree is empty — insert a value to begin</text>`;
+    return;
+  }
+  let edges='', nodes='';
+  function walk(node){
+    if(!node) return;
+    if(node.left){
+      edges += `<line class="edge" x1="${node.x}" y1="${node.y}" x2="${node.left.x}" y2="${node.left.y}"/>`;
+      walk(node.left);
+    }
+    if(node.right){
+      edges += `<line class="edge" x1="${node.x}" y1="${node.y}" x2="${node.right.x}" y2="${node.right.y}"/>`;
+      walk(node.right);
+    }
+    const state = highlightMap[node.id];
+    let fill = 'var(--node)';
+    if(state==='active') fill='var(--nodeActive)';
+    else if(state==='visited') fill='var(--nodeVisited)';
+    else if(state==='new') fill='var(--nodeNew)';
+    nodes += `<circle class="node-circle" cx="${node.x}" cy="${node.y}" r="20" fill="${fill}"/>
+              <text class="node-text" x="${node.x}" y="${node.y}">${node.val}</text>`;
+  }
+  walk(root);
+  svg.innerHTML = edges + nodes;
+}
+
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+function speedVal(){ return parseInt(document.getElementById('speed').value,10); }
+
+// ---------- actions ----------
+async function doInsert(){
+  const v = parseInt(document.getElementById('valInput').value,10);
+  if(isNaN(v)) return flashMsg('Enter a number first');
+  root = insert(root,v);
+  layout();
+  // find node just inserted to flash it
+  let node=root, target=null;
+  while(node){ if(node.val===v){target=node; break;} node = v<node.val? node.left: node.right; }
+  render(target? {[target.id]:'new'}:{});
+  await sleep(speedVal());
+  render();
+  document.getElementById('valInput').value='';
+}
+
+async function doDelete(){
+  const v = parseInt(document.getElementById('valInput').value,10);
+  if(isNaN(v)) return flashMsg('Enter a number first');
+  root = remove(root,v);
+  render();
+  document.getElementById('valInput').value='';
+}
+
+async function doSearch(){
+  const v = parseInt(document.getElementById('valInput').value,10);
+  if(isNaN(v)) return flashMsg('Enter a number first');
+  let node=root;
+  const visited={};
+  while(node){
+    visited[node.id]='active';
+    render(visited);
+    await sleep(speedVal());
+    if(node.val===v){ visited[node.id]='visited'; render(visited); return; }
+    visited[node.id]='visited';
+    node = v<node.val? node.left : node.right;
+  }
+  await sleep(200);
+  render();
+}
+
+async function doTraversal(kind){
+  const out=document.getElementById('traversalOut');
+  out.textContent='';
+  const seq=[]; const visited={};
+  function inorder(n){ if(!n) return; inorder(n.left); seq.push(n); inorder(n.right); }
+  function preorder(n){ if(!n) return; seq.push(n); preorder(n.left); preorder(n.right); }
+  function postorder(n){ if(!n) return; postorder(n.left); postorder(n.right); seq.push(n); }
+  function levelorder(n){
+    if(!n) return;
+    const q=[n];
+    while(q.length){ const cur=q.shift(); seq.push(cur); if(cur.left) q.push(cur.left); if(cur.right) q.push(cur.right); }
+  }
+  ({inorder,preorder,postorder,levelorder})[kind](root);
+  for(const n of seq){
+    visited[n.id]='active';
+    render(visited);
+    out.textContent += (out.textContent? ' → ':'') + n.val;
+    await sleep(speedVal());
+    visited[n.id]='visited';
+    render(visited);
+  }
+}
+
+function randomTree(){
+  root=null;
+  const vals = new Set();
+  while(vals.size<7) vals.add(Math.floor(Math.random()*90)+10);
+  [...vals].forEach(v=> root=insert(root,v));
+  render();
+}
+function clearTree(){ root=null; render(); document.getElementById('traversalOut').textContent='Run a traversal to see the order here…'; }
+function flashMsg(msg){
+  const out=document.getElementById('traversalOut');
+  out.style.color='var(--danger)';
+  out.textContent=msg;
+  setTimeout(()=>{ out.style.color='var(--nodeVisited)'; },900);
+}
+
+render();
+</script>
+</body>
+</html>
